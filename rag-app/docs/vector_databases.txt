@@ -1,0 +1,122 @@
+Vector Databases and Semantic Search
+======================================
+
+Introduction to Vector Search
+-------------------------------
+Traditional keyword-based search works by matching exact words or phrases in documents. While effective for many use cases, keyword search fails when users phrase their queries differently from the document content, or when the meaning behind a query needs to be captured rather than its exact wording.
+
+Semantic search solves this problem by representing both queries and documents as dense numerical vectors — lists of floating-point numbers — in a high-dimensional space. Documents and queries with similar meaning end up close together in this vector space, regardless of the exact words used.
+
+How Embeddings Work
+--------------------
+An embedding model (also called an encoder) converts text into a dense vector representation. Models like BERT, Sentence-BERT (SBERT), and OpenAI's text-embedding-ada-002 are trained on billions of text pairs so that semantically similar sentences are encoded close together in the embedding space.
+
+For example, the sentences "The cat sat on the mat" and "A feline rested on a rug" would be encoded as vectors that are very close together (high cosine similarity), even though they share no common words.
+
+The embedding dimension refers to the size of the vector. Popular models use dimensions like 384 (all-MiniLM-L6-v2), 768 (BERT-base), or 1536 (OpenAI text-embedding-ada-002). Larger dimensions typically capture more nuance but require more storage and computation.
+
+Similarity Metrics
+-------------------
+Once documents are embedded as vectors, similarity can be measured using:
+
+1. Cosine Similarity: Measures the angle between two vectors. A cosine similarity of 1.0 means identical direction (semantically identical), 0.0 means orthogonal (unrelated). This is the most common metric for text embeddings.
+2. Euclidean Distance (L2): Measures the straight-line distance between two vectors in the embedding space. Smaller distance = more similar.
+3. Dot Product: Measures the product of vector magnitudes and the cosine of the angle. Useful when vector magnitude carries meaning (e.g., in recommended systems).
+
+Approximate Nearest Neighbor (ANN) Search
+-------------------------------------------
+Finding the most similar vectors in a large collection (millions or billions of vectors) by exhaustive comparison would be too slow for real-time applications. Approximate Nearest Neighbor (ANN) algorithms trade a small amount of accuracy for dramatic speed improvements.
+
+Popular ANN algorithms include:
+- HNSW (Hierarchical Navigable Small World): A graph-based algorithm that builds a multi-layered graph structure enabling extremely fast search. Used by Faiss, Qdrant, and many other systems.
+- IVF (Inverted File Index): Divides vectors into clusters (Voronoi cells), searching only the nearest clusters rather than the entire dataset.
+- Product Quantization (PQ): Compresses vectors by decomposing them into sub-vectors and quantizing each independently, dramatically reducing memory usage.
+
+Endee Vector Database
+----------------------
+Endee is an open-source, high-performance vector database built in C++ for AI search and retrieval workloads. Key characteristics of Endee include:
+
+Architecture:
+Endee is optimized for modern CPU architectures, including AVX2, AVX512 (Intel Xeon / AMD EPYC), NEON (Apple Silicon), and SVE2. This enables extremely fast vector operations directly on the CPU without requiring specialized GPU hardware.
+
+Scale:
+Endee is designed to handle up to 1 billion vectors on a single node, making it suitable for large-scale production workloads without the complexity of distributed systems.
+
+Features:
+- Dense vector retrieval with cosine similarity and Euclidean distance
+- Sparse vector support for hybrid search (combining semantic and keyword search)
+- Payload filtering: attach arbitrary JSON metadata to vectors and filter results by metadata at query time (e.g., "find documents about AI published after 2023")
+- Support for INT8 and FP32 precision, balancing memory efficiency and accuracy
+- Built-in HTTP API with SDKs for Python, Node.js, Java, and Go
+
+Deployment:
+Endee can be run as a Docker container with a single command or built from source. The server exposes an HTTP API on port 8080, and an optional web dashboard at the same address for visualizing indexes and running test queries.
+
+Using Endee with Python
+------------------------
+The Endee Python SDK makes it straightforward to integrate vector search into Python applications:
+
+Installation:
+    pip install endee
+
+Connecting to Endee:
+    from endee import Endee, Precision
+    client = Endee()  # Connects to http://localhost:8080 by default
+
+Creating an Index:
+    client.create_index(
+        name="my_knowledge_base",
+        dimension=384,
+        space_type="cosine",
+        precision=Precision.INT8
+    )
+
+Inserting Vectors:
+    index = client.get_index("my_knowledge_base")
+    index.upsert([
+        {
+            "id": "doc1_chunk0",
+            "vector": [0.1, 0.2, ...],  # 384-dimensional embedding
+            "meta": {"text": "original text", "source": "document.txt"}
+        }
+    ])
+
+Querying:
+    results = index.query(vector=[0.15, 0.25, ...], top_k=5)
+    for r in results:
+        print(r["meta"]["text"], r["similarity"])
+
+Hybrid Search
+--------------
+Hybrid search combines dense (semantic) retrieval with sparse (keyword/BM25) retrieval to improve search quality. For queries where both semantic understanding and precise term matching are important, hybrid search often outperforms either approach alone.
+
+Endee supports sparse vectors, allowing developers to implement hybrid search by combining dense vector similarity scores with BM25 or TF-IDF sparse scores. The final ranking can be computed using Reciprocal Rank Fusion (RRF) or a linear combination of both scores.
+
+Payload Filtering in Vector Search
+------------------------------------
+One of the most powerful features of modern vector databases is the ability to combine vector similarity search with structured metadata filtering. For example:
+- Find documents semantically similar to "machine learning" that were published in 2024
+- Find products similar to a given product that are in stock and cost under $50
+- Find customer support tickets similar to a current issue that were resolved successfully
+
+Endee implements payload filtering at the index level, meaning filtering happens during the ANN search rather than as a post-processing step. This is significantly more efficient because fewer vectors need to be evaluated.
+
+Use Cases for Vector Databases
+--------------------------------
+1. Retrieval-Augmented Generation (RAG): Grounding LLM responses in real documents
+2. Semantic Search Engines: Search across documents, products, or media using meaning
+3. Recommendation Systems: "Users who liked X also liked Y" based on embedding similarity
+4. Anomaly Detection: Identify data points that are far from their nearest neighbors
+5. Duplicate Detection: Find near-duplicate documents or images
+6. Question Answering: Match questions against a FAQ knowledge base
+7. Code Search: Search codebases by describing desired functionality in natural language
+8. Agentic AI Memory: Store and retrieve past observations and context for AI agents
+
+The Future of Vector Search
+-----------------------------
+As AI applications become more sophisticated, the demands on vector databases will increase. Future trends include:
+- Multi-modal vector search covering text, images, audio, and video in a unified space
+- Real-time vector updates for streaming data pipelines
+- Federated vector search across distributed data sources
+- Privacy-preserving vector search using encrypted embeddings
+- Tighter integration between vector databases and reasoning engines for agentic AI workflows

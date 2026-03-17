@@ -1,0 +1,8 @@
+endee
+sentence-transformers
+flask
+flask-cors
+python-dotenv
+requests
+PyPDF2
+groq
